@@ -89,7 +89,8 @@ def move_files_up(path_to_sub_id):
         for file in os.listdir(old):
             shutil.move(os.path.join(old, file), new)
 
-    #shutil.rmtree(os.path.join(path_to_sub_id, session_id))
+    # Removes old directory, which should be empty
+    shutil.rmtree(os.path.join(path_to_sub_id, session_id))
 
 
 def rename_all_files(path_to_sub_id):
@@ -141,8 +142,11 @@ def run_single_subject(sub_id, bids_path="./bids"):
     # Path to single subject's BIDS data
     subject_path = os.path.join(bids_path, f"sub-{sub_id}")
 
-    # Move files from nested session subdirectory
-    move_files_up(subject_path)
+    try:
+        # Move files from nested session subdirectory
+        move_files_up(subject_path)
+    except Exception as e:
+        print(f"\nsub-{sub_id}:\t\t{e}")
 
     # Rename files to strip out ses
     rename_all_files(subject_path)
