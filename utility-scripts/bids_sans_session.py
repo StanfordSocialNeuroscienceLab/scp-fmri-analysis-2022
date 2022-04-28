@@ -200,8 +200,10 @@ def cleanup_fmap(path_to_sub_id):
         """
         This function isolates the session ID for each subject
         """
-
-        return [x for x in incoming_DICT['IntendedFor'][0].split('/')[-1].split('_') if 'ses-' in x][0]
+        try:
+            return [x for x in incoming_DICT['IntendedFor'][0].split('/')[-1].split('_') if 'ses-' in x][0], False
+        except:
+            return '', True
 
 
     def update_field(incoming_JSON):
@@ -214,11 +216,16 @@ def cleanup_fmap(path_to_sub_id):
             data = json.load(incoming)
 
         # Get session ID
-        session_label = isolate_session(incoming_DICT=data)
+        session_label, multi_run = isolate_session(incoming_DICT=data)
 
         # Update IntendedFor key with list comprehension
-        data['IntendedFor'] = [x.replace(session_label, '').replace('__', '_')[1:]
-                              for x in data['IntendedFor']]
+        if not multi_run:
+            data['IntendedFor'] = [x.replace(session_label, '').replace('__', '_')[1:]
+                                for x in data['IntendedFor']]
+
+        # Add units to fieldmap only
+        if "fieldmap.json" in incoming_JSON:
+            data['Units'] = 'Hz'
 
         # Save JSON to fmap directory
         with open(incoming_JSON, "w") as outgoing:
