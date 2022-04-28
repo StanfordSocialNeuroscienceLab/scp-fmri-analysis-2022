@@ -20,7 +20,7 @@ IRF | SSNL
 import warnings
 warnings.filterwarnings('ignore')
 
-import os, pathlib, sys, shutil, glob
+import os, pathlib, sys, shutil, glob, json
 from tqdm import tqdm
 from bids import BIDSLayout
 
@@ -130,6 +130,115 @@ def rename_all_files(path_to_sub_id):
             os.rename(file, new_name)
 
 
+def cleanup_fmap(path_to_sub_id):
+    """
+    This function accomplishes the following tasks:
+        * Determines which file set is MAGNITUDE and which file set is FIELDMAP
+        * Renames both sets appropriately (while removing any lingering ses- tags)
+        * Updates INTENDEDFOR fields for all JSON files
+
+    NOTE: This function should be run last, after all directory reorganizing has
+    already been taken care of
+
+    Parameters
+        path_to_sub_id: str | Relative path to our subject's data
+        sub_id: str | Participant identifier in BIDS project
+    """
+
+    # ==== Renaming magnitude files ====
+    def isolate_fieldmap(fmap_path):
+        """
+        This function determines which file set is the FIELDMAP and which
+        file set is the MAGNITUDE
+        """
+
+        # Loop through relevant JSON files
+        for path in tqdm(glob.glob(os.path.join(fmap_path, "**/*.json"), recursive=True)):
+            
+            # Read in file as a dictionary
+            with open(path) as incoming:
+                temp_data = json.load(incoming)
+
+                # Determine if file is FIELDMAP or MAGNITUDE
+                if 'fieldmap' in temp_data['fslhd']['filename']:
+
+                    # Return file type agnostic identifier
+                    return path.split('/')[-1].split('.json')[0]
+                else:
+                    continue
+
+        raise OSError("No fieldmap identified")
+
+    # Relative path to fmap subdirectory
+    fmap_path = os.path.join(path_to_sub_id, "fmap")
+
+    # Isolate fieldmap key
+    fieldmap_key = isolate_fieldmap(fmap_path=fmap_path)
+
+    # Magnitude key is the same convention with one word changed
+    magnitude_key = fieldmap_key.replace("fieldmap", "magnitude")
+
+    # Loop through ALL fmap files
+    for file in glob.glob(os.path.join(fmap_path, "**/*"), recursive=True):
+        
+        # Skip over actual fieldmap files
+        if fieldmap_key in file:
+            continue
+
+        # Create file type specific filenames
+        if ".json" in file:
+            new_filename = os.path.join(fmap_path, f"{magnitude_key}.json")
+        elif ".nii.gz" in file:
+            new_filename = os.path.join(fmap_path, f"{magnitude_key}.nii.gz")
+
+        # Rename magnitude files
+        os.rename(file, new_filename)
+
+
+    # ==== Updated `IntendedFor` keys ===
+    def isolate_session(incoming_DICT):
+        """
+        This function isolates the session ID for each subject
+        """
+
+        return [x for x in incoming_DICT['IntendedFor'][0].split('/')[-1].split('_') if 'ses-' in x][0]
+
+
+    def update_field(incoming_JSON):
+        """
+        This function iteratively updates the IntendedFor fields in all JSON files
+        """
+
+        # Read in JSON as dictionary object
+        with open(incoming_JSON) as incoming:
+            data = json.load(incoming)
+
+        # Get session ID
+        session_label = isolate_session(incoming_DICT=data)
+
+        # Update IntendedFor key with list comprehension
+        data['IntendedFor'] = [x.replace(session_label, '').replace('__', '_')[1:]
+                              for x in data['IntendedFor']]
+
+        # Save JSON to fmap directory
+        with open(incoming_JSON, "w") as outgoing:
+            json.dump(data, outgoing, indent=5)
+
+
+    def rewrite_metadata(fmap_path):
+        """
+        This function wraps the helpers above to seamlessly update
+        the IntendedFor fields in all JSON files per subject
+        """
+
+        for file in glob.glob(os.path.join(fmap_path, "**/*.json"), recursive=True):
+            update_field(file)
+
+
+    # Run wrapper
+    rewrite_metadata(fmap_path=fmap_path)
+
+    
 def run_single_subject(sub_id, bids_path="./bids"):
     """
     Applies all of the helper functions outlined above
@@ -144,12 +253,21 @@ def run_single_subject(sub_id, bids_path="./bids"):
 
     try:
         # Move files from nested session subdirectory
-        move_files_up(subject_path)
+        move_files_up(path_to_sub_id=subject_path)
     except Exception as e:
         print(f"\nsub-{sub_id}:\t\t{e}")
 
     # Rename files to strip out ses
-    rename_all_files(subject_path)
+    try:
+        rename_all_files(path_to_sub_id=subject_path)
+    except Exception as e:
+        print(f"sub-{sub_id}:\t\t{e}")
+
+    # Update fieldmap info
+    try:
+        cleanup_fmap(path_to_sub_id=subject_path)
+    except Exception as e:
+        print(f"sub-{sub_id}:\t\t{e}")
 
 
 def main():
