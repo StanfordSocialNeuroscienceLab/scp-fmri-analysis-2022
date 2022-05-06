@@ -13,7 +13,12 @@ This script performs the following operations:
     * Moves all files from the ses- subdirectory to the higher-level BIDS directory
     * Rename each file to strip out the ses- tag
 
-IRF | SSNL
+Ian Richard Ferguson | Stanford University
+"""
+
+"""
+TODO
+    * Add in magnitude flexibility / abstraction
 """
 
 # --- Imports
@@ -130,7 +135,7 @@ def rename_all_files(path_to_sub_id):
             os.rename(file, new_name)
 
 
-def cleanup_fmap(path_to_sub_id):
+def cleanup_fmap(path_to_sub_id, rename_magnitude=True):
     """
     This function accomplishes the following tasks:
         * Determines which file set is MAGNITUDE and which file set is FIELDMAP
@@ -142,7 +147,7 @@ def cleanup_fmap(path_to_sub_id):
 
     Parameters
         path_to_sub_id: str | Relative path to our subject's data
-        sub_id: str | Participant identifier in BIDS project
+        rename_magnitude: Boolean | if True, magnitude file is identified and renamed
     """
 
     # ==== Renaming magnitude files ====
@@ -169,30 +174,37 @@ def cleanup_fmap(path_to_sub_id):
 
         raise OSError("No fieldmap identified")
 
-    # Relative path to fmap subdirectory
-    fmap_path = os.path.join(path_to_sub_id, "fmap")
+    """
+    The latest BIDS Curation gear *should* name the fieldmap
+    and magnitude files correctly ... however, this function gives
+    the option to perform this step after BIDS Curation in Oak
+    """
 
-    # Isolate fieldmap key
-    fieldmap_key = isolate_fieldmap(fmap_path=fmap_path)
+    if rename_magnitude:
+        # Relative path to fmap subdirectory
+        fmap_path = os.path.join(path_to_sub_id, "fmap")
 
-    # Magnitude key is the same convention with one word changed
-    magnitude_key = fieldmap_key.replace("fieldmap", "magnitude")
+        # Isolate fieldmap key
+        fieldmap_key = isolate_fieldmap(fmap_path=fmap_path)
 
-    # Loop through ALL fmap files
-    for file in glob.glob(os.path.join(fmap_path, "**/*"), recursive=True):
-        
-        # Skip over actual fieldmap files
-        if fieldmap_key in file:
-            continue
+        # Magnitude key is the same convention with one word changed
+        magnitude_key = fieldmap_key.replace("fieldmap", "magnitude")
 
-        # Create file type specific filenames
-        if ".json" in file:
-            new_filename = os.path.join(fmap_path, f"{magnitude_key}.json")
-        elif ".nii.gz" in file:
-            new_filename = os.path.join(fmap_path, f"{magnitude_key}.nii.gz")
+        # Loop through ALL fmap files
+        for file in glob.glob(os.path.join(fmap_path, "**/*"), recursive=True):
+            
+            # Skip over actual fieldmap files
+            if fieldmap_key in file:
+                continue
 
-        # Rename magnitude files
-        os.rename(file, new_filename)
+            # Create file type specific filenames
+            if ".json" in file:
+                new_filename = os.path.join(fmap_path, f"{magnitude_key}.json")
+            elif ".nii.gz" in file:
+                new_filename = os.path.join(fmap_path, f"{magnitude_key}.nii.gz")
+
+            # Rename magnitude files
+            os.rename(file, new_filename)
 
 
     # ==== Updated `IntendedFor` keys ===
@@ -283,7 +295,7 @@ def mass_cleanup(path_to_sub_id):
         os.rename(src=file, dst=clean_filename)
 
     
-def run_single_subject(sub_id, bids_path="./bids"):
+def run_single_subject(sub_id, bids_path="./bids", rename_magnitude=True):
     """
     Applies all of the helper functions outlined above
 
@@ -309,7 +321,7 @@ def run_single_subject(sub_id, bids_path="./bids"):
 
     # Update fieldmap info
     try:
-        cleanup_fmap(path_to_sub_id=subject_path)
+        cleanup_fmap(path_to_sub_id=subject_path, rename_magnitude=rename_magnitude)
     except Exception as e:
         print(f"sub-{sub_id}:\t\t{e}")
 
@@ -331,6 +343,18 @@ def main():
     except:
         single_subject = False
 
+    try:
+        magnitude = sys.argv[3]
+
+        if str(magnitude) == "True":
+            magnitude = True
+        elif str(magnitude) == "False":
+            magnitude = False
+        else:
+            raise OSError(f"Invalid input for magnitude argument: {magnitude}")
+    except:
+        magnitude = False
+
     # Instantiate BIDSLayout object for easy looping
     bids = BIDSLayout(bids_path)
 
@@ -340,13 +364,13 @@ def main():
 
         # Loop through all subjects and apply the run_single_subject function
         for sub in tqdm(bids.get_subjects()):
-            run_single_subject(sub_id=sub, bids_path=bids_path)
+            run_single_subject(sub_id=sub, bids_path=bids_path, rename_magnitude=magnitude)
 
     else:
         print(f"\n** Running subject-{subject} **\n")
 
         # Apply our function to one subject
-        run_single_subject(sub_id=subject, bids_path=bids_path)
+        run_single_subject(sub_id=subject, bids_path=bids_path, rename_magnitude=magnitude)
 
 
 # --- Main
