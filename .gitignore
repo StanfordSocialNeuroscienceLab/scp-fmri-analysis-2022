@@ -2,3 +2,4 @@
 .DS_Store
 utility-scripts/.DS_Store
 utility-scripts/_hiearchy.py
+utility-scripts/flywheel_to_oak.sh
