@@ -20,7 +20,7 @@ Ian Richard Ferguson | Stanford University
 import warnings
 warnings.filterwarnings('ignore')
 
-import os, pathlib, sys, shutil, glob, json
+import os, sys, shutil, glob
 from tqdm import tqdm
 from bids import BIDSLayout
 
@@ -68,29 +68,31 @@ def move_files_up(path_to_sub_id):
             path_to_sub_id: str | Relative path to subject BIDS data
       """
 
-      create_correct_subdirs(path_to_sub_id)
-
       # Session ID, e.g., ses-12345
-      session_id = get_session_id(path_to_sub_id)
+      try:
+            session_id = [x for x in os.listdir(path_to_sub_id) if "ses-" in x][0]
+            directory_formatted = False
+      except:
+            directory_formatted = True
 
-      # Loop through subdirectories
-      for subdir in ["anat", "fmap", "func"]:
+      # Directory has not been re-formatted, we'll do that here
+      if not directory_formatted:
+            # Loop through subdirectories
+            for subdir in ["anat", "fmap", "func"]:
 
-            # Nested subdirs
-            old = os.path.join(path_to_sub_id, session_id, subdir)
+                  # Nested subdirs
+                  old = os.path.join(path_to_sub_id, session_id, subdir)
 
-            # Target subdirs
-            new = os.path.join(path_to_sub_id, subdir)
+                  # Target subdirs
+                  new = os.path.join(path_to_sub_id, subdir)
 
-            """
-            For every file in the 'old' 
-            """
+                  # Move all files up out of sesion subdirectory
+                  for file in os.listdir(old):
+                        shutil.move(os.path.join(old, file), new)
 
-            for file in os.listdir(old):
-                  shutil.move(os.path.join(old, file), new)
-
-      # Removes old directory, which should be empty
-      shutil.rmtree(os.path.join(path_to_sub_id, session_id))
+            # Removes old directory, which should be empty
+            if session_id is not None:
+                  shutil.rmtree(os.path.join(path_to_sub_id, session_id))
 
 
 def rename_all_files(path_to_sub_id):
@@ -112,40 +114,52 @@ def rename_all_files(path_to_sub_id):
 
 def run_single_subject(subject_id, bids_path, log):
       """
-      
+      Loops through our functions above and applies them to a given subject
+
+      Parameters
+            subject_id: str | Subject's identifier in the BIDS project
+            bids_path: str | Relative path to BIDS project
+            log: I/O stream | Text file opened outside of this function
       """
 
+      # Relative path to subject's BIDS data
       filepath = os.path.join(bids_path, f"sub-{subject_id}")
       log.write(f"\n** sub-{subject_id} **\n")
 
+      # -- Create new subdirectories
       try:
             create_correct_subdirs(filepath)
             log.write("Created subdirs:\t\tSuccessful\n")
       except Exception as e:
-            log.write(f"Created subdirs:\t\t{e}")
+            log.write(f"Created subdirs:\t\t{e}\n")
 
+      # -- Move files up from session subdirectory
       try:
             move_files_up(filepath)
             log.write("Files moved up:\t\tSuccessful\n")
       except Exception as e:
-            log.write(f"Files moved up:\t\t{e}")
+            log.write(f"Files moved up:\t\t{e}\n")
 
+      # -- Strip session identifier from all files
       try:
             rename_all_files(filepath)
             log.write("Renamed files:\t\tSuccessful\n")
       except Exception as e:
-            log.write(f"Renamed files:\t\t{e}")
+            log.write(f"Renamed files:\t\t{e}\n")
       
-
 
 def main():
 
+      # Relative path to BIDS project
       bids_root = sys.argv[1]
 
+      # Subject identifier or ALL
       subject = sys.argv[2]
 
+      # Open text file to log any issues
       with open("./directory_hierarchy.txt", "w") as log:
 
+            # Accept ALL as input to run every subject
             if subject.upper() == "ALL":
 
                   all_subjects = BIDSLayout(bids_root).get_subjects()
@@ -153,6 +167,7 @@ def main():
                   for sub in tqdm(all_subjects):
                         run_single_subject(sub, bids_root, log)
 
+            # Run single subject through our script
             else:
                   run_single_subject(subject, bids_root, log)
 
