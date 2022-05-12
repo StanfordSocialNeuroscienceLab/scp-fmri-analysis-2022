@@ -165,11 +165,15 @@ def main():
                   all_subjects = BIDSLayout(bids_root).get_subjects()
 
                   for sub in tqdm(all_subjects):
-                        run_single_subject(sub, bids_root, log)
+                        run_single_subject(sub, 
+                                           bids_root, 
+                                           log)
 
             # Run single subject through our script
             else:
-                  run_single_subject(subject, bids_root, log)
+                  run_single_subject(subject, 
+                                     bids_root, 
+                                     log)
 
 
 if __name__ == "__main__":
