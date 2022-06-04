@@ -26,11 +26,11 @@ for sub in ${subjects[@]}; do
 #SBATCH --output=.out/${sub}.out
 #SBATCH --error=.out/${sub}.err
 #SBATCH --time=2-00:00
-#SBATCH --mem=12000
+#SBATCH --mem=24000
 #SBATCH --qos=normal
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=$USER@stanford.edu
-#SBATCH -c 8
+#SBATCH -c 10
 #SBATCH -N 1
 bash /oak/stanford/groups/jzaki/scp_2022/scripts/preprocessing/fmriprep_singleSubject.sh $sub" > $job_file
     sbatch $job_file
