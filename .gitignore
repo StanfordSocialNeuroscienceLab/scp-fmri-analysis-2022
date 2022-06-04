@@ -5,3 +5,4 @@ utility-scripts/_hiearchy.py
 utility-scripts/flywheel_to_oak.sh
 setup/~$ywheel_to_oak.docx
 setup/flywheel_to_oak.docx
+preprocessing/scripts/fmriprep_stressbuffering.sh
