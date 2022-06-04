@@ -114,6 +114,9 @@ def update_indented_for(path_to_sub_dir):
             # Obtain clean list of relative paths
             temp["IntendedFor"] = clean_intended_for(temp["IntendedFor"])
 
+            # Drop JSON files from IntendedFor field
+            temp["IntendedFor"] = [x for x in temp["IntendedFor"] if ".json" not in x]
+
             # Add units to fieldmap files only
             if "fieldmap.json" in json_file:
                   temp["Units"] = "Hz"
@@ -144,15 +147,15 @@ def run_single_subject(subject_id, bids_path, log):
 
       try:
             rename_files(path_to_sub_dir)
-            log.write("rename_files:\t\tSuccessful")
+            log.write("rename_files:\t\tSuccessful\n")
       except Exception as e:
-            log.write(f"rename_files:\t\t{e}")
+            log.write(f"rename_files:\t\t{e}\n")
 
       try:
             update_indented_for(path_to_sub_dir)
-            log.write("update_intended_for:\tSuccessful")
+            log.write("update_intended_for:\tSuccessful\n")
       except Exception as e:
-            log.write(f"update_intended_for:\t{e}")
+            log.write(f"update_intended_for:\t{e}\n")
 
 
 def main():
@@ -174,3 +177,7 @@ def main():
                   run_single_subject(subject_id=subject, 
                                      bids_path=bids_root,
                                      log=log)
+
+
+if __name__ == "__main__":
+      main()
