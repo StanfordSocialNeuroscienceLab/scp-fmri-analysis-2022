@@ -28,7 +28,7 @@ for sub in ${subjects[@]}; do
 #SBATCH --time=2-00:00
 #SBATCH --mem=24000
 #SBATCH --qos=normal
-#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-type=FAIL
 #SBATCH --mail-user=$USER@stanford.edu
 #SBATCH -c 10
 #SBATCH -N 1
